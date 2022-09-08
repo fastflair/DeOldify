@@ -313,7 +313,7 @@ class VideoColorizer:
         fps = self._get_fps(source_path)
 
         process = (
-            ffmpeg 
+            ffmpeg
                 .input(str(colorframes_path_template), format='image2', vcodec='mjpeg', framerate=fps) 
                 .output(str(colorized_path), crf=17, vcodec='libx264')
                 .global_args('-hide_banner')
@@ -344,7 +344,7 @@ class VideoColorizer:
             audio_file.unlink()
 
         os.system(
-            'ffmpeg -y -i "'
+            '/usr/bin/ffmpeg -y -i "'
             + str(source_path)
             + '" -vn -acodec copy "'
             + str(audio_file)
@@ -356,7 +356,7 @@ class VideoColorizer:
 
         if audio_file.exists():
             os.system(
-                'ffmpeg -y -i "'
+                '/usr/bin/ffmpeg -y -i "'
                 + str(colorized_path)
                 + '" -i "'
                 + str(audio_file)
