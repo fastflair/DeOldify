@@ -16,34 +16,6 @@ from IPython.display import Image as ipythonimage
 import cv2
 import logging
 
-# adapted from https://www.pyimagesearch.com/2016/04/25/watermarking-images-with-opencv-and-python/
-def get_watermarked(pil_image: Image) -> Image:
-    try:
-        image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
-        (h, w) = image.shape[:2]
-        image = np.dstack([image, np.ones((h, w), dtype="uint8") * 255])
-        pct = 0.05
-        full_watermark = cv2.imread(
-            './resource_images/watermark.png', cv2.IMREAD_UNCHANGED
-        )
-        (fwH, fwW) = full_watermark.shape[:2]
-        wH = int(pct * h)
-        wW = int((pct * h / fwH) * fwW)
-        watermark = cv2.resize(full_watermark, (wH, wW), interpolation=cv2.INTER_AREA)
-        overlay = np.zeros((h, w, 4), dtype="uint8")
-        (wH, wW) = watermark.shape[:2]
-        overlay[h - wH - 10 : h - 10, 10 : 10 + wW] = watermark
-        # blend the two images together using transparent overlays
-        output = image.copy()
-        cv2.addWeighted(overlay, 0.5, output, 1.0, 0, output)
-        rgb_image = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
-        final_image = Image.fromarray(rgb_image)
-        return final_image
-    except:
-        # Don't want this to crash everything, so let's just not watermark the image for now.
-        return pil_image
-
-
 class ModelImageVisualizer:
     def __init__(self, filter: IFilter, results_dir: str = None):
         self.filter = filter
@@ -73,7 +45,6 @@ class ModelImageVisualizer:
         display_render_factor: bool = False,
         compare: bool = False,
         post_process: bool = True,
-        watermarked: bool = True,
     ) -> Path:
         img = self._get_image_from_url(url)
         img.save(path)
@@ -85,7 +56,6 @@ class ModelImageVisualizer:
             display_render_factor=display_render_factor,
             compare=compare,
             post_process = post_process,
-            watermarked=watermarked,
         )
 
     def plot_transformed_image(
@@ -97,13 +67,12 @@ class ModelImageVisualizer:
         display_render_factor: bool = False,
         compare: bool = False,
         post_process: bool = True,
-        watermarked: bool = True,
     ) -> Path:
         path = Path(path)
         if results_dir is None:
             results_dir = Path(self.results_dir)
         result = self.get_transformed_image(
-            path, render_factor, post_process=post_process,watermarked=watermarked
+            path, render_factor, post_process=post_process
         )
         orig = self._open_pil_image(path)
         if compare:
@@ -167,16 +136,12 @@ class ModelImageVisualizer:
 
     def get_transformed_image(
         self, path: Path, render_factor: int = None, post_process: bool = True,
-        watermarked: bool = True,
     ) -> Image:
         self._clean_mem()
         orig_image = self._open_pil_image(path)
         filtered_image = self.filter.filter(
             orig_image, orig_image, render_factor=render_factor,post_process=post_process
         )
-
-        if watermarked:
-            return get_watermarked(filtered_image)
 
         return filtered_image
 
@@ -285,7 +250,6 @@ class VideoColorizer:
 
     def _colorize_raw_frames(
         self, source_path: Path, render_factor: int = None, post_process: bool = True,
-        watermarked: bool = True,
     ):
         colorframes_folder = self.colorframes_root / (source_path.stem)
         colorframes_folder.mkdir(parents=True, exist_ok=True)
@@ -297,7 +261,7 @@ class VideoColorizer:
 
             if os.path.isfile(str(img_path)):
                 color_image = self.vis.get_transformed_image(
-                    str(img_path), render_factor=render_factor, post_process=post_process,watermarked=watermarked
+                    str(img_path), render_factor=render_factor, post_process=post_process
                 )
                 color_image.save(str(colorframes_folder / img))
 
@@ -344,7 +308,7 @@ class VideoColorizer:
             audio_file.unlink()
 
         os.system(
-            '/usr/bin/ffmpeg -y -i "'
+            'ffmpeg -y -i "'
             + str(source_path)
             + '" -vn -acodec copy "'
             + str(audio_file)
@@ -356,7 +320,7 @@ class VideoColorizer:
 
         if audio_file.exists():
             os.system(
-                '/usr/bin/ffmpeg -y -i "'
+                'ffmpeg -y -i "'
                 + str(colorized_path)
                 + '" -i "'
                 + str(audio_file)
@@ -376,25 +340,24 @@ class VideoColorizer:
         file_name: str,
         render_factor: int = None,
         post_process: bool = True,
-        watermarked: bool = True,
 
     ) -> Path:
         source_path = self.source_folder / file_name
         self._download_video_from_url(source_url, source_path)
         return self._colorize_from_path(
-            source_path, render_factor=render_factor, post_process=post_process,watermarked=watermarked
+            source_path, render_factor=render_factor, post_process=post_process
         )
 
     def colorize_from_file_name(
-        self, file_name: str, render_factor: int = None,  watermarked: bool = True, post_process: bool = True,
+        self, file_name: str, render_factor: int = None,  post_process: bool = True,
     ) -> Path:
         source_path = self.source_folder / file_name
         return self._colorize_from_path(
-            source_path, render_factor=render_factor,  post_process=post_process,watermarked=watermarked
+            source_path, render_factor=render_factor,  post_process=post_process
         )
 
     def _colorize_from_path(
-        self, source_path: Path, render_factor: int = None,  watermarked: bool = True, post_process: bool = True
+        self, source_path: Path, render_factor: int = None, post_process: bool = True
     ) -> Path:
         if not source_path.exists():
             raise Exception(
@@ -402,7 +365,7 @@ class VideoColorizer:
             )
         self._extract_raw_frames(source_path)
         self._colorize_raw_frames(
-            source_path, render_factor=render_factor,post_process=post_process,watermarked=watermarked
+            source_path, render_factor=render_factor,post_process=post_process
         )
         return self._build_video(source_path)
 
